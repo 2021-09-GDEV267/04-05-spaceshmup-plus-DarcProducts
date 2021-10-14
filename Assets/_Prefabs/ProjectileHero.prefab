@@ -129,8 +129,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _pType: 0
   missileDetectRadius: 20
-  phaserMagnitude: 3
-  phaserFrequency: 20
+  phaserMagnitude: 6
+  phaserFrequency: 40
   missileDetectLayers:
     serializedVersion: 2
     m_Bits: 512
