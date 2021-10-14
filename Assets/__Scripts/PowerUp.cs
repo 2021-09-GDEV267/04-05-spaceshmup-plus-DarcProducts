@@ -11,6 +11,7 @@ public class PowerUp : MonoBehaviour {
     public Vector2 driftMinMax = new Vector2(.25f, 2);
     public float lifeTime = 6f; // Seconds the PowerUp exists
     public float fadeTime = 4f; // Seconds it will then fade
+    public GameEvent OnCollectedPowerUp;
 
     [Header("Set Dynamically")]
     public WeaponType type; // The type of the PowerUp 
@@ -22,6 +23,7 @@ public class PowerUp : MonoBehaviour {
     private Rigidbody rigid;
     private BoundsCheck bndCheck;
     private Renderer cubeRend;
+   
 
     private void Awake()
     {
@@ -107,6 +109,9 @@ public class PowerUp : MonoBehaviour {
         // This function is called by the Hero class when a PowerUp is collected
         // We could tween into the target and shrink in size.
         // But for now just destroy this.gameObject
+        OnCollectedPowerUp?.Invoke(this.gameObject);
+        WeaponDefinition def = Main.GetWeaponDefinition(type);
+        ScoreKeeper.S.DisplayMessage($"Picked Up: {def.name}", 1.5f, transform.position);
         Destroy(this.gameObject);
     }
 }

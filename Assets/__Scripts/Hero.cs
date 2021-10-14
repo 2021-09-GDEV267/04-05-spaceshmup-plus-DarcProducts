@@ -1,19 +1,21 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class Hero : MonoBehaviour {
+public class Hero : MonoBehaviour
+{
     static public Hero S; // Singleton
-
+    public GameEvent HeroDied;
     [Header("Set in Inspector")]
     // These fields control the movement of the ship
     public float speed = 30;
+    public int maxShieldLevel;
     public float rollMult = -45;
     public float pitchMult = 30;
     public float gameRestartDelay = 2f;
     public GameObject projectilePrefab;
     public float projectileSpeed = 40;
     public Weapon[] weapons;
+    public WeaponType startingWeapon;
+    public GameEvent OnShieldHit;
 
     [Header("Set Dynamically")]
     [SerializeField]
@@ -24,10 +26,11 @@ public class Hero : MonoBehaviour {
 
     // Declare a new delegate type WeaponFireDelegate
     public delegate void WeaponFireDelegate();
+
     // Create a WeaponFireDelegate field named fireDelegate.
     public WeaponFireDelegate fireDelegate;
 
-	void Start()
+    void Awake()
     {
         if (S == null)
         {
@@ -38,14 +41,17 @@ public class Hero : MonoBehaviour {
             Debug.LogError("Hero.Awake() - Attempted to assign second Hero.S!");
         }
         //fireDelegate += TempFire;
-
-        // Reset the weapons to start _Hero with 1 blaster
-        ClearWeapons();
-        weapons[0].SetType(WeaponType.blaster);
     }
-	
-	// Update is called once per frame
-	void Update()
+
+    private void Start()
+    {
+        // Reset the weapons to start _Hero with starting weapon
+        ClearWeapons();
+        weapons[0].SetType(startingWeapon);
+    }
+
+    // Update is called once per frame
+    void Update()
     {
         // Pull in information from the Input class
         float xAxis = Input.GetAxis("Horizontal");
@@ -82,8 +88,10 @@ public class Hero : MonoBehaviour {
         }
         lastTriggerGo = go;
 
-        if(go.tag == "Enemy")
+        if (go.tag == "Enemy")
         {
+            if (OnShieldHit != null)
+                OnShieldHit.Invoke(this.gameObject);
             shieldLevel--;
             Destroy(go);
         }
@@ -108,11 +116,27 @@ public class Hero : MonoBehaviour {
                 break;
 
             default:
-                if(pu.type == weapons[0].type)
+                if (pu.type == weapons[0].type)
                 {
                     Weapon w = GetEmptyWeaponSlot();
-                    if(w != null)
+                    WeaponDefinition wd = Main.GetWeaponDefinition(weapons[0].type);
+                    if (wd != null)
                     {
+                        int currentWeaponCount = 0;
+                        for (int i = 0; i < weapons.Length; i++)
+                        {
+                            if (weapons[i].gameObject.activeSelf)
+                                currentWeaponCount++;
+                        }
+                        if (currentWeaponCount >= wd.maxWeapons)
+                        {
+                            Destroy(pu.gameObject);
+                            return;
+                        }
+                    }
+                    if (w != null)
+                    {
+                        Debug.Log($"{w.name} set to {pu.type}");
                         // Set it to pu.type
                         w.SetType(pu.type);
                     }
@@ -136,10 +160,11 @@ public class Hero : MonoBehaviour {
         }
         set
         {
-            _shieldLevel = Mathf.Min(value, 4);
+            _shieldLevel = Mathf.Min(value, maxShieldLevel);
             // If the shield is going to be set to less than zero
             if (value < 0)
             {
+                HeroDied?.Invoke(this.gameObject);
                 Destroy(this.gameObject);
                 // Tell Main.S to restart the game after a delay
                 Main.S.DelayedRestart(gameRestartDelay);
@@ -149,7 +174,7 @@ public class Hero : MonoBehaviour {
 
     Weapon GetEmptyWeaponSlot()
     {
-        for (int i=0; i<weapons.Length; i++)
+        for (int i = 0; i < weapons.Length; i++)
         {
             if (weapons[i].type == WeaponType.none)
             {

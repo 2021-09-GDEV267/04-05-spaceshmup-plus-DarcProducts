@@ -3,21 +3,23 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Enemy : MonoBehaviour {
-
-    [Header("Set in Inspector: Enemy")]
+    public Color damageColor;
+    public GameEvent EnemyExploded;
+    public int scoreValue;
     public float speed = 10f; // The speed in m/s
     public float fireRate = 0.3f; // Seconds/shot (Unused)
     public float health = 10;
     public int score = 100; // Points earned for destroying this
     public float showDamageDuration = 0.1f; // # seconds to show damage
     public float powerUpDropChance = 1f; // Chance to drop a power-up
+    public GameEvent OnEnemyHit;
 
     [Header("Set Dynamically: Enemy")]
-    public Color[] originalColors;
-    public Material[] materials;// All the Materials of this & its children
+    Color[] originalColors;
+    Material[] materials;// All the Materials of this & its children
     public bool showingDamage = false;
     public float damageDoneTime; // Time to stop showing damage
-    public bool notifiedOfDestruction = false; // Will be used later
+    bool notifiedOfDestruction = false; // Will be used later
 
     protected BoundsCheck bndCheck;
 
@@ -88,16 +90,8 @@ public class Enemy : MonoBehaviour {
                 // Get the damage amount from the Main WEAP_DICT
                 health -= Main.GetWeaponDefinition(p.type).damageOnHit;
                 if(health <= 0)
-                {
-                    // Tell the Main singleton that this ship was destroyed
-                    if (!notifiedOfDestruction)
-                    {
-                        Main.S.ShipDestroyed(this);
-                    }
-                    notifiedOfDestruction = true;
-                    // Destroy this enemy
-                    Destroy(this.gameObject);
-                }
+                    DestroyShip();
+                OnEnemyHit?.Invoke(this.gameObject);
                 Destroy(otherGO);
                 break;
 
@@ -107,11 +101,33 @@ public class Enemy : MonoBehaviour {
         }
     }
 
+    public void CauseDamage(float dmg)
+    {
+        ShowDamage();
+        health -= dmg;
+        if (health <= 0)
+            DestroyShip();
+    }
+
+    void DestroyShip()
+    {
+        // Tell the Main singleton that this ship was destroyed
+        if (!notifiedOfDestruction)
+        {
+            Main.S.ShipDestroyed(this);
+        }
+        notifiedOfDestruction = true;
+        // Destroy this enemy
+        ScoreKeeper.S.AddToScore(this.gameObject, scoreValue);
+        EnemyExploded?.Invoke(this.gameObject);
+        Destroy(this.gameObject);
+    }
+
     void ShowDamage()
     {
         foreach (Material m in materials)
         {
-            m.color = Color.red;
+            m.color = damageColor;
         }
         showingDamage = true;
         damageDoneTime = Time.time + showDamageDuration;
